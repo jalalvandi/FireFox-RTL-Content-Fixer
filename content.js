@@ -1,7 +1,6 @@
-// content.js
 console.log("RTL Content Fixer: Content script loading...");
 
-// --- Constants --- (Unchanged)
+// --- Constants --- 
 const RTL_REGEX = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
 const LTR_REGEX = /[A-Za-z]/;
 const DIGIT_REGEX = /[0-9]/;
@@ -10,7 +9,7 @@ const SKIP_SELECTORS = 'script, style, noscript, code, pre, kbd, var, samp, text
 const PROCESSED_ATTR = 'data-rtl-fixer-processed';
 const RTL_STYLE_ATTR = 'data-rtl-fixer-styled';
 
-// --- State Variables --- (Unchanged)
+// --- State Variables --- 
 let isEnabled = false;
 let excludedSites = [];
 let currentHostname = null;
@@ -23,9 +22,8 @@ try { if (window.location) currentHostname = window.location.hostname; }
 catch (e) { console.error("RTL Fixer: Error getting hostname:", e); }
 
 // --- Core Logic Functions (isPotentialCandidate, applyRtlStyle, checkAndFixNode) ---
-// These functions remain unchanged.
 
-function isPotentialCandidate(element) { /* ... unchanged ... */
+function isPotentialCandidate(element) {
     if (!element || element.nodeType !== Node.ELEMENT_NODE || element.matches(SKIP_SELECTORS) || !element.isConnected) return false;
     if (element.hasAttribute(PROCESSED_ATTR) || element.hasAttribute(RTL_STYLE_ATTR)) return false;
     let computedStyle; try { computedStyle = window.getComputedStyle(element); if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') { element.setAttribute(PROCESSED_ATTR, 'hidden'); return false; } } catch (e) { computedStyle = null; }
@@ -33,10 +31,10 @@ function isPotentialCandidate(element) { /* ... unchanged ... */
     try { const direction = computedStyle ? computedStyle.direction : window.getComputedStyle(element).direction; if (direction === 'rtl') { element.setAttribute(PROCESSED_ATTR, 'already-rtl'); return false; } } catch (e) { element.setAttribute(PROCESSED_ATTR, 'style-error'); return false; }
     return true;
 }
-function applyRtlStyle(element) { /* ... unchanged ... */
+function applyRtlStyle(element) {
     element.style.direction = 'rtl'; element.style.textAlign = 'right'; element.setAttribute(RTL_STYLE_ATTR, 'true'); element.removeAttribute(PROCESSED_ATTR);
 }
-function checkAndFixNode(node) { /* ... unchanged ... */
+function checkAndFixNode(node) {
     if (!node) return; if (node.nodeType === Node.TEXT_NODE && node.parentElement) { node = node.parentElement; node.removeAttribute(PROCESSED_ATTR); }
     if (!node || node.nodeType !== Node.ELEMENT_NODE || node.matches(SKIP_SELECTORS) || !node.isConnected) return;
     if (isPotentialCandidate(node)) { applyRtlStyle(node); } else { if (!node.hasAttribute(PROCESSED_ATTR) && !node.hasAttribute(RTL_STYLE_ATTR)) node.setAttribute(PROCESSED_ATTR, 'checked-subtree'); }
@@ -68,7 +66,7 @@ function runScan(scanReason = "Initial", container = document.body) { // Add rea
     console.log(`RTL Fixer: Scan (${scanReason}) completed. ${fixCount} elements styled.`);
 }
 
-function debounce(func, wait) { /* Debounce implementation (unchanged) */
+function debounce(func, wait) { /* Debounce implementation*/
     let timeout; return function (...args) { const later = () => { clearTimeout(timeout); func(...args); }; clearTimeout(timeout); timeout = setTimeout(later, wait); };
 }
 
@@ -95,7 +93,7 @@ const handleMutations = debounce((mutationsList) => {
 }, 400);
 
 
-function startObserver() { /* ... unchanged ... */
+function startObserver() {
     if (observer || !isEnabled || (currentHostname && excludedSites.includes(currentHostname))) return;
     if (!document.body) { setTimeout(startObserver, 100); return; }
     console.log("RTL Fixer: Starting MutationObserver for", currentHostname);
@@ -104,7 +102,7 @@ function startObserver() { /* ... unchanged ... */
     catch (error) { console.error("RTL Fixer: Failed to start observer:", error); observer = null; observerActive = false; }
 }
 
-function stopObserver() { /* ... unchanged ... */
+function stopObserver() {
     if (observer) { console.log("RTL Fixer: Stopping observer"); observer.disconnect(); observer = null; observerActive = false; }
     // Clear the second scan timer if we stop the observer
     if (secondScanTimer) {
@@ -114,14 +112,14 @@ function stopObserver() { /* ... unchanged ... */
     }
 }
 
-function revertAllStyles() { /* ... unchanged ... */
+function revertAllStyles() {
     console.log("RTL Fixer: Reverting styles..."); const styled = document.querySelectorAll(`[${RTL_STYLE_ATTR}]`); styled.forEach(el => { el.style.direction = ''; el.style.textAlign = ''; el.removeAttribute(RTL_STYLE_ATTR); el.removeAttribute(PROCESSED_ATTR); }); console.log(`Reverted ${styled.length} elements.`);
 }
 
 
 // --- Initialization and Message Handling ---
 
-async function getSettingsWithRetry(maxRetries = 5, initialDelay = 200) { /* ... unchanged ... */
+async function getSettingsWithRetry(maxRetries = 5, initialDelay = 200) {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try { /* console.log(`Attempt ${attempt}/${maxRetries}...`); */
             const settings = await browser.runtime.sendMessage({ action: 'getSettings' });
@@ -135,7 +133,7 @@ async function getSettingsWithRetry(maxRetries = 5, initialDelay = 200) { /* ...
             /* console.warn(`Error on attempt ${attempt}:`, error.message); */
             if (attempt === maxRetries) { /* console.error("Failed after retries."); */ return null; }
         }
-        const delay = initialDelay * Math.pow(2, attempt - 1);
+        const delay = initialDelay * Math.pow(4, attempt - 1);
         /* console.log(`Waiting ${delay}ms...`); */
         await new Promise(resolve => setTimeout(resolve, delay));
     } return null;
@@ -189,19 +187,19 @@ async function initialize() {
             startObserver();
 
         } else {
-            // Log reason for not proceeding (Unchanged)
+            // Log reason for not proceeding 
             // ...
             stopObserver();
         }
     } else {
-        // Failed to get settings after retries (Unchanged)
+        // Failed to get settings after retries 
         // ...
         isEnabled = false; stopObserver();
     }
 }
 
 // --- Listener for Background Updates ---
-browser.runtime.onMessage.addListener((message, sender, sendResponse) => { /* ... unchanged ... */
+browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const action = message?.action; if (!action) return false;
     // console.log(`RTL Fixer Content: Received message: ${action}`); // Less verbose logging
     if (action === 'updateState') {

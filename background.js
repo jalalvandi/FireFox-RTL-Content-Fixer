@@ -1,5 +1,3 @@
-// background.js (No major changes needed, just confirming structure)
-
 const DEFAULT_SETTINGS = {
     isEnabled: true,
     excludedSites: []
