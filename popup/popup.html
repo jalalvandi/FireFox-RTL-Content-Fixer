@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>RTL Fixer Settings</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="container">
+        <h2>RTL Content Fixer</h2>
+
+        <div class="setting">
+            <label for="enabled-toggle">Enable Extension:</label>
+            <label class="switch">
+                <input type="checkbox" id="enabled-toggle">
+                <span class="slider round"></span>
+            </label>
+        </div>
+
+        <div class="setting">
+            <p>Exclude this site (<span id="current-site">loading...</span>)?</p>
+            <button id="exclude-button" disabled>Exclude Current Site</button>
+            <button id="unexclude-button" style="display: none;">Re-include Current Site</button>
+        </div>
+
+         <div class="excluded-list" id="excluded-sites-section" style="display: none;">
+             <h3>Excluded Sites:</h3>
+             <ul id="excluded-sites-list">
+                 <!-- Sites will be listed here -->
+             </ul>
+         </div>
+         <p class="status" id="status-message"></p>
+    </div>
+    <script src="popup.js"></script>
+</body>
+</html>
