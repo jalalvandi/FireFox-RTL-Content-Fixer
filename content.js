@@ -1,354 +1,278 @@
 // content.js
-console.log("RTL Content Fixer: Content script loaded.");
+console.log("RTL Content Fixer: Content script loading...");
 
 // --- Constants ---
-// Unicode range for Persian/Arabic characters and common related marks
 const RTL_REGEX = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
-// Basic Latin characters
 const LTR_REGEX = /[A-Za-z]/;
-// Digits (can appear in both LTR and RTL contexts)
 const DIGIT_REGEX = /[0-9]/;
-
-// Tags most likely to contain block-level or significant inline text
-// Avoid overly broad selectors like 'div' or '*' if possible initially
-const TARGET_TAGS = ['P', 'LI', 'TD', 'TH', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE', 'ARTICLE', 'SECTION', 'ASIDE', 'SUMMARY', 'FIGCAPTION'];
-// Selectors for elements to explicitly skip (optimization)
-const SKIP_SELECTORS = 'script, style, noscript, code, pre, kbd, var, samp, textarea, input, [contenteditable="true"]'; // Added contenteditable
-
+const TARGET_TAGS = ['P', 'LI', 'TD', 'TH', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE', 'ARTICLE', 'SECTION', 'ASIDE', 'SUMMARY', 'FIGCAPTION', 'DD', 'DT'];
+const SKIP_SELECTORS = 'script, style, noscript, code, pre, kbd, var, samp, textarea, input, [contenteditable="true"], svg, math, iframe'; // Added iframe
 const PROCESSED_ATTR = 'data-rtl-fixer-processed';
-const RTL_STYLE_ATTR = 'data-rtl-fixer-styled'; // Mark elements we styled
+const RTL_STYLE_ATTR = 'data-rtl-fixer-styled';
 
 // --- State Variables ---
-let isEnabled = true; // Assume enabled by default until settings are fetched
+let isEnabled = false; // Default to false until settings are confirmed
 let excludedSites = [];
-let currentHostname = window.location.hostname;
-let observer = null; // MutationObserver instance
+let currentHostname = null;
+let observer = null;
 let observerActive = false;
 
-// --- Core Logic Functions ---
+// Get hostname early
+try {
+    if (window.location) {
+        currentHostname = window.location.hostname;
+    }
+} catch (e) {
+    console.error("RTL Fixer: Error getting hostname:", e);
+}
 
-/**
- * Checks if an element is a potential candidate for RTL fixing.
- * @param {Element} element The DOM element to check.
- * @returns {boolean} True if the element might need fixing, false otherwise.
- */
+// --- Core Logic Functions (isPotentialCandidate, applyRtlStyle, checkAndFixNode) ---
+// These functions remain unchanged from the previous complete version.
+// They assume the decision to run has already been made based on isEnabled/excludedSites.
+
 function isPotentialCandidate(element) {
-    // 1. Basic checks: Must be an element node, not explicitly skipped, and visible.
-    if (!element || element.nodeType !== Node.ELEMENT_NODE || element.matches(SKIP_SELECTORS)) {
+    // Basic checks
+    if (!element || element.nodeType !== Node.ELEMENT_NODE || element.matches(SKIP_SELECTORS) || !element.isConnected) {
         return false;
     }
-    // Avoid checking hidden elements (optimization) - check offsetParent which is faster than getComputedStyle
-    if (element.offsetParent === null && element.tagName !== 'BODY') { // Check visibility crudely
-        // Note: This might miss elements initially hidden then shown later without DOM change triggering observer
-        return false;
-    }
-
-    // 2. Check if already processed or styled by us
     if (element.hasAttribute(PROCESSED_ATTR) || element.hasAttribute(RTL_STYLE_ATTR)) {
         return false;
     }
-
-    // 3. Check content: Must contain RTL characters.
-    //    Checking textContent can be expensive repeatedly. Check basic presence first.
-    const text = element.textContent; // Get text content once
+    let computedStyle;
+    try {
+        computedStyle = window.getComputedStyle(element);
+        if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
+            element.setAttribute(PROCESSED_ATTR, 'hidden');
+            return false;
+        }
+    } catch (e) { /* Ignore style errors */ computedStyle = null; }
+    const text = element.textContent;
     if (!text || !RTL_REGEX.test(text)) {
-        element.setAttribute(PROCESSED_ATTR, 'no-rtl'); // Mark as checked, no RTL found
+        element.setAttribute(PROCESSED_ATTR, 'no-rtl');
         return false;
     }
-
-    // 4. Check direction: Only fix if current direction is LTR.
-    //    getComputedStyle is expensive, do it last.
     try {
-        if (window.getComputedStyle(element).direction === 'rtl') {
-            element.setAttribute(PROCESSED_ATTR, 'already-rtl'); // Mark as checked, already RTL
+        const direction = computedStyle ? computedStyle.direction : window.getComputedStyle(element).direction;
+        if (direction === 'rtl') {
+            element.setAttribute(PROCESSED_ATTR, 'already-rtl');
             return false;
         }
     } catch (e) {
-        console.warn("RTL Fixer: Could not get computed style for element:", element, e);
-        element.setAttribute(PROCESSED_ATTR, 'style-error'); // Mark as checked, error occurred
-        return false; // Skip if style cannot be determined
+        element.setAttribute(PROCESSED_ATTR, 'style-error'); return false;
     }
-
-    // 5. Content Mix Check (Refined):
-    //    Only apply RTL if it *contains* RTL chars (checked above)
-    //    AND it's currently LTR (checked above).
-    //    We *don't* strictly need the LTR check (LTR_REGEX.test(text)) anymore,
-    //    because if it was *purely* RTL, the site's CSS *should* handle it.
-    //    Our goal is to fix mixed content or wrongly LTR'd RTL content.
-    //    So, the conditions RTL_REGEX.test(text) and computedStyle.direction === 'ltr' are sufficient.
-
-    return true; // Passed all checks, it's a candidate
+    return true;
 }
 
-/**
- * Applies RTL styling to an element.
- * @param {Element} element The DOM element to style.
- */
 function applyRtlStyle(element) {
-    // console.log("RTL Fixer: Applying RTL style to:", element);
     element.style.direction = 'rtl';
-    // Using 'right' is generally safer than 'justify' for mixed content
     element.style.textAlign = 'right';
-    element.setAttribute(RTL_STYLE_ATTR, 'true'); // Mark that *we* styled it
-    element.removeAttribute(PROCESSED_ATTR); // Remove temporary processing mark
+    element.setAttribute(RTL_STYLE_ATTR, 'true');
+    element.removeAttribute(PROCESSED_ATTR);
 }
 
-/**
- * Checks a specific node and its children recursively for potential RTL fixes.
- * More efficient than querying the whole document repeatedly.
- * @param {Node} node The starting node (Element or Text Node).
- */
 function checkAndFixNode(node) {
     if (!node) return;
-
-    // If it's a text node that changed, check its parent element
     if (node.nodeType === Node.TEXT_NODE && node.parentElement) {
         node = node.parentElement;
-        // Clear parent's processed status if text changes, it needs re-evaluation
-        node.removeAttribute(PROCESSED_ATTR);
-        node.removeAttribute(RTL_STYLE_ATTR); // Also remove our style if text changed
-        // Note: Removing the style might cause flicker if it needs to be reapplied.
-        // A better approach might be to re-evaluate without removing the style first.
-        // Let's refine: only remove PROCESSED_ATTR
         node.removeAttribute(PROCESSED_ATTR);
     }
-
-    // Only proceed if it's an Element node now
-    if (!node || node.nodeType !== Node.ELEMENT_NODE || node.matches(SKIP_SELECTORS)) {
+    if (!node || node.nodeType !== Node.ELEMENT_NODE || node.matches(SKIP_SELECTORS) || !node.isConnected) {
         return;
     }
-
-    // Check the element itself
     if (isPotentialCandidate(node)) {
         applyRtlStyle(node);
     } else {
-        // If not a candidate, mark as processed (if not already marked for a reason)
         if (!node.hasAttribute(PROCESSED_ATTR) && !node.hasAttribute(RTL_STYLE_ATTR)) {
-            node.setAttribute(PROCESSED_ATTR, 'checked');
+            node.setAttribute(PROCESSED_ATTR, 'checked-subtree');
         }
     }
-
-    // Recursively check children (only if the parent isn't explicitly skipped)
-    // Use childNodes for direct children, including text nodes (though we primarily process elements)
-    // Check element children more reliably:
-    const children = node.children; // HTMLCollection of element children
+    const children = node.children;
     for (let i = 0; i < children.length; i++) {
         checkAndFixNode(children[i]);
     }
 }
 
 
-/**
- * Scans the entire document (or a container) for elements needing RTL fix.
- * Should be used sparingly, e.g., on initial load.
- * @param {Element} container The element to scan within (default: document.body).
- */
-function initialScan(container = document.body) {
-    if (!isEnabled || excludedSites.includes(currentHostname)) {
-        console.log("RTL Fixer: Initial scan skipped (disabled or excluded).");
-        return;
-    }
-    console.log("RTL Fixer: Starting initial scan...");
-    // Query potential candidates directly
+// --- Scan and Observer Functions ---
+
+function runScan(container = document.body) {
+    if (!container || typeof container.querySelectorAll !== 'function') return;
+    console.log("RTL Fixer: Running scan...");
     const candidates = container.querySelectorAll(TARGET_TAGS.join(','));
     let fixCount = 0;
     candidates.forEach(el => {
-        if (isPotentialCandidate(el)) {
-            applyRtlStyle(el);
-            fixCount++;
-        } else {
-            if (!el.hasAttribute(PROCESSED_ATTR) && !el.hasAttribute(RTL_STYLE_ATTR)) {
-                el.setAttribute(PROCESSED_ATTR, 'initial-scan-checked');
-            }
+        if (isPotentialCandidate(el)) { applyRtlStyle(el); fixCount++; }
+        else if (!el.hasAttribute(PROCESSED_ATTR) && !el.hasAttribute(RTL_STYLE_ATTR)) {
+            el.setAttribute(PROCESSED_ATTR, 'scan-checked');
         }
     });
-    console.log(`RTL Fixer: Initial scan completed. ${fixCount} elements styled.`);
-
-    // Start observing *after* the initial scan seems reasonable
-    startObserver();
+    console.log(`RTL Fixer: Scan completed. ${fixCount} elements styled.`);
 }
 
-// --- MutationObserver Logic ---
-
-/** Debounce function to limit rapid calls */
-function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
+function debounce(func, wait) { /* Debounce implementation (unchanged) */
+    let timeout; return function (...args) { const later = () => { clearTimeout(timeout); func(...args); }; clearTimeout(timeout); timeout = setTimeout(later, wait); };
 }
 
 const handleMutations = debounce((mutationsList) => {
-    if (!isEnabled || !observerActive) {
-        // console.log("RTL Fixer: Mutation handling skipped (disabled or observer inactive).");
-        return;
-    }
-    // console.log("RTL Fixer: Processing mutations...");
-    let needsProcessing = false;
+    if (!isEnabled || !observerActive || (currentHostname && excludedSites.includes(currentHostname))) return;
     mutationsList.forEach((mutation) => {
-        if (mutation.type === 'childList') {
-            // Check added nodes
-            mutation.addedNodes.forEach(node => {
-                // Check the node itself and its subtree
-                checkAndFixNode(node);
-                needsProcessing = true; // Mark that we did work
-            });
-            // Check removed nodes? Less critical for styling, but could clear attributes if needed.
-        } else if (mutation.type === 'characterData') {
-            // Check the parent element of the changed text node
-            if (mutation.target.parentElement) {
-                // Clear status so it gets re-evaluated fully
-                mutation.target.parentElement.removeAttribute(PROCESSED_ATTR);
-                mutation.target.parentElement.removeAttribute(RTL_STYLE_ATTR); // Remove style if text changed
-                checkAndFixNode(mutation.target.parentElement);
-                needsProcessing = true; // Mark that we did work
-            }
+        if (mutation.type === 'childList') { mutation.addedNodes.forEach(checkAndFixNode); }
+        else if (mutation.type === 'characterData' && mutation.target.parentElement) {
+            mutation.target.parentElement.removeAttribute(PROCESSED_ATTR);
+            checkAndFixNode(mutation.target.parentElement);
         }
     });
-    // if (needsProcessing) console.log("RTL Fixer: Mutation processing finished.");
-
-}, 500); // Debounce delay in milliseconds (adjust as needed)
-
+}, 400);
 
 function startObserver() {
-    if (observer || !isEnabled || excludedSites.includes(currentHostname)) {
-        console.log("RTL Fixer: Observer not started (already running, disabled, or site excluded).");
-        return;
-    }
-    if (!document.body) {
-        console.warn("RTL Fixer: Document body not ready for observer.");
-        // Retry shortly?
-        setTimeout(startObserver, 100);
-        return;
-    }
-
-    console.log("RTL Fixer: Starting MutationObserver.");
+    if (observer || !isEnabled || (currentHostname && excludedSites.includes(currentHostname))) return;
+    if (!document.body) { setTimeout(startObserver, 100); return; }
+    console.log("RTL Fixer: Starting MutationObserver for", currentHostname);
     observer = new MutationObserver(handleMutations);
-    observer.observe(document.body, {
-        childList: true,    // Detect added/removed nodes
-        subtree: true,      // Observe the entire subtree under body
-        characterData: true // Detect changes to text node content
-        // We don't usually need attribute changes unless specific attributes affect layout/content significantly
-        // attributes: false,
-        // attributeOldValue: false,
-        // characterDataOldValue: false
-    });
-    observerActive = true;
+    try {
+        observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+        observerActive = true;
+    } catch (error) { console.error("RTL Fixer: Failed to start observer:", error); observer = null; observerActive = false; }
 }
 
 function stopObserver() {
-    if (observer) {
-        console.log("RTL Fixer: Stopping MutationObserver.");
-        observer.disconnect();
-        observer = null;
-        observerActive = false;
-        // Optionally: Revert styles applied by the extension?
-        // revertAllStyles(); // See function below
-    }
+    if (observer) { console.log("RTL Fixer: Stopping observer"); observer.disconnect(); observer = null; observerActive = false; }
 }
 
-/**
- * Optional: Function to remove styles applied by this extension.
- */
-function revertAllStyles() {
-    console.log("RTL Fixer: Reverting applied styles...");
-    const styledElements = document.querySelectorAll(`[${RTL_STYLE_ATTR}]`);
-    styledElements.forEach(el => {
-        el.style.direction = ''; // Reset to default/CSS value
-        el.style.textAlign = ''; // Reset to default/CSS value
-        el.removeAttribute(RTL_STYLE_ATTR);
-        el.removeAttribute(PROCESSED_ATTR); // Clear processing state too
-    });
-    console.log(`RTL Fixer: Reverted styles for ${styledElements.length} elements.`);
+function revertAllStyles() { /* Revert styles implementation (unchanged) */
+    console.log("RTL Fixer: Reverting styles..."); const styled = document.querySelectorAll(`[${RTL_STYLE_ATTR}]`); styled.forEach(el => { el.style.direction = ''; el.style.textAlign = ''; el.removeAttribute(RTL_STYLE_ATTR); el.removeAttribute(PROCESSED_ATTR); }); console.log(`Reverted ${styled.length} elements.`);
 }
+
 
 // --- Initialization and Message Handling ---
 
-async function initialize() {
-    try {
-        const settings = await browser.runtime.sendMessage({ action: 'getSettings' });
-        if (settings) {
-            isEnabled = settings.isEnabled;
-            excludedSites = settings.excludedSites || [];
-            currentHostname = window.location.hostname; // Ensure it's fresh
-            console.log("RTL Fixer: Initial settings received:", settings, "Current Host:", currentHostname);
+/**
+ * Attempts to get settings from the background script with retries.
+ * @param {number} maxRetries Maximum number of attempts.
+ * @param {number} initialDelay Delay before the first retry (ms).
+ * @returns {Promise<object|null>} Resolves with settings object or null on failure.
+ */
+async function getSettingsWithRetry(maxRetries = 5, initialDelay = 200) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            console.log(`RTL Fixer Content: Attempt ${attempt}/${maxRetries} to get settings...`);
+            const settings = await browser.runtime.sendMessage({ action: 'getSettings' });
 
-            if (isEnabled && !excludedSites.includes(currentHostname)) {
-                // Use requestIdleCallback for non-critical initial scan
-                if ('requestIdleCallback' in window) {
-                    window.requestIdleCallback(initialScan, { timeout: 2000 }); // Run when idle, max delay 2s
-                } else {
-                    setTimeout(initialScan, 500); // Fallback timeout
-                }
+            // **Crucial Check:** Ensure the response is valid and contains expected data.
+            if (settings && typeof settings.isEnabled !== 'undefined' && Array.isArray(settings.excludedSites)) {
+                console.log("RTL Fixer Content: Settings received successfully:", settings);
+                return settings; // Success! Return the settings.
             } else {
-                console.log("RTL Fixer: Extension is disabled or site is excluded. Initial scan and observer skipped.");
+                // Received something, but it's not valid settings object
+                console.warn(`RTL Fixer Content: Received invalid settings object on attempt ${attempt}:`, settings);
+                // Treat as failure and proceed to retry (or throw error if last attempt)
+                if (attempt === maxRetries) throw new Error("Invalid settings received after max retries.");
             }
-        } else {
-            console.warn("RTL Fixer: Could not retrieve settings from background.");
-            // Proceed with defaults (likely enabled) but log warning
-            if (isEnabled) setTimeout(initialScan, 500); // Fallback scan
+        } catch (error) {
+            console.warn(`RTL Fixer Content: Error getting settings on attempt ${attempt}:`, error.message);
+            if (attempt === maxRetries) {
+                console.error("RTL Fixer Content: Failed to get settings after multiple retries.");
+                return null; // Indicate final failure
+            }
         }
-    } catch (error) {
-        console.error("RTL Fixer: Error initializing or contacting background script:", error);
-        // Attempt initial scan with default assumption (enabled) as a fallback
-        console.warn("RTL Fixer: Proceeding with default state (enabled) due to error.");
-        setTimeout(initialScan, 500);
+        // Wait before the next attempt
+        const delay = initialDelay * Math.pow(2, attempt - 1); // Exponential backoff
+        console.log(`RTL Fixer Content: Waiting ${delay}ms before next attempt...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+    }
+    return null; // Should not be reached if maxRetries > 0, but acts as safeguard
+}
+
+
+/**
+ * Main initialization function.
+ */
+async function initialize() {
+    console.log("RTL Fixer Content: Initializing for hostname:", currentHostname);
+
+    // 1. Fetch settings using the retry mechanism
+    const settings = await getSettingsWithRetry();
+
+    // 2. Process the fetched settings (or handle failure)
+    if (settings) {
+        isEnabled = settings.isEnabled;
+        excludedSites = settings.excludedSites; // Already checked if array in retry function
+
+        console.log("RTL Fixer Content: Checking final settings.", {
+            isEnabled: isEnabled,
+            currentHostname: currentHostname,
+            isExcluded: currentHostname ? excludedSites.includes(currentHostname) : 'N/A',
+            excludedList: excludedSites
+        });
+
+        // 3. Decide whether to proceed
+        if (isEnabled && currentHostname && !excludedSites.includes(currentHostname)) {
+            console.log("RTL Fixer Content: Extension ACTIVE. Proceeding with scan and observer.");
+
+            // 4. Run initial scan when ready (with small delay)
+            const runDelayedScan = () => setTimeout(() => {
+                if (document.body) runScan(document.body);
+            }, 50);
+            if (document.readyState === 'complete' || document.readyState === 'interactive') { runDelayedScan(); }
+            else { document.addEventListener('DOMContentLoaded', runDelayedScan, { once: true }); }
+
+            // 5. Start the observer
+            startObserver();
+
+        } else {
+            // Log reason for not proceeding
+            if (!isEnabled) console.log("RTL Fixer Content: Extension is DISABLED.");
+            else if (!currentHostname) console.log("RTL Fixer Content: No valid hostname.");
+            else console.log(`RTL Fixer Content: Site "${currentHostname}" is EXCLUDED.`);
+            stopObserver(); // Ensure observer is stopped
+        }
+    } else {
+        // Failed to get settings after retries
+        console.error("RTL Fixer Content: INITIALIZATION FAILED - Could not retrieve settings. Extension inactive.");
+        isEnabled = false; // Ensure state reflects failure
+        stopObserver();
     }
 }
 
-// Listen for messages from the background script (e.g., state changes)
+// --- Listener for Background Updates ---
 browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    console.log("RTL Fixer Content: Received message:", message);
-    if (message.action === 'updateState') {
-        let stateChanged = false;
-        if (typeof message.payload.isEnabled === 'boolean' && isEnabled !== message.payload.isEnabled) {
-            isEnabled = message.payload.isEnabled;
-            stateChanged = true;
-            console.log("RTL Fixer: Enabled state updated to:", isEnabled);
-        }
-        if (Array.isArray(message.payload.excludedSites) && JSON.stringify(excludedSites) !== JSON.stringify(message.payload.excludedSites)) {
-            excludedSites = message.payload.excludedSites;
-            stateChanged = true;
-            console.log("RTL Fixer: Exclusion list updated.");
-        }
+    const action = message?.action;
+    if (!action) return false; // Ignore messages without action
 
-        if (stateChanged) {
-            currentHostname = window.location.hostname; // Re-check hostname just in case
-            const shouldBeActive = isEnabled && !excludedSites.includes(currentHostname);
-            const isCurrentlyActive = observerActive;
-
-            if (shouldBeActive && !isCurrentlyActive) {
-                console.log("RTL Fixer: Enabling observer and running initial scan due to state change.");
-                initialScan(); // Run scan and start observer
-            } else if (!shouldBeActive && isCurrentlyActive) {
-                console.log("RTL Fixer: Disabling observer due to state change.");
+    console.log(`RTL Fixer Content: Received message: ${action}`);
+    if (action === 'updateState') {
+        let needsReCheck = false;
+        // Update state if provided and changed
+        if (typeof message.payload?.isEnabled === 'boolean' && isEnabled !== message.payload.isEnabled) {
+            isEnabled = message.payload.isEnabled; console.log("isEnabled updated to:", isEnabled); needsReCheck = true;
+        }
+        if (Array.isArray(message.payload?.excludedSites) && JSON.stringify(excludedSites) !== JSON.stringify(message.payload.excludedSites)) {
+            excludedSites = message.payload.excludedSites; console.log("Exclusion list updated:", excludedSites); needsReCheck = true;
+        }
+        // Re-evaluate activity if state changed
+        if (needsReCheck) {
+            const shouldBeActive = isEnabled && currentHostname && !excludedSites.includes(currentHostname);
+            console.log("Re-checking activity state. Should be active:", shouldBeActive, "Observer currently active:", observerActive);
+            if (shouldBeActive && !observerActive) {
+                console.log("Enabling scan/observer due to state update.");
+                if (document.body) runScan(document.body); // Run scan now
+                startObserver();
+            } else if (!shouldBeActive && observerActive) {
+                console.log("Disabling observer due to state update.");
                 stopObserver();
-                // revertAllStyles(); // Decide if disabling should revert styles
-            } else if (shouldBeActive && isCurrentlyActive) {
-                console.log("RTL Fixer: State changed but current active status remains correct. Re-evaluating existing elements might be needed if exclusion changed.");
-                // Optional: Force a re-scan if the exclusion list was modified to *remove* the current site.
-                if (message.payload.excludedSites && !message.payload.excludedSites.includes(currentHostname)) {
-                    // If current site was just removed from exclusion, trigger a scan.
-                    revertAllStyles(); // Clean slate before scan
-                    initialScan();
-                }
+                revertAllStyles(); // Revert styles on dynamic disable/exclude
             }
         }
-        sendResponse({ success: true }); // Acknowledge message
-        return true; // Indicate async potential if needed later
+        sendResponse({ success: true });
+        return true; // Async response possible
     }
-    // Handle other message types if necessary
+    return false; // No async response for other actions
 });
 
-// Start the initialization process
-initialize();
+// --- Start Initialization ---
+initialize(); // Call the main async initialization function
 
-// Cleanup observer on page unload (good practice)
-window.addEventListener('beforeunload', () => {
-    stopObserver();
-});
+// Cleanup observer on page unload
+window.addEventListener('beforeunload', stopObserver);
+
+console.log("RTL Fixer Content: Script loaded and initialization sequence started.");
