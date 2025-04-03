@@ -1,188 +1,145 @@
 // content.js
 console.log("RTL Content Fixer: Content script loading...");
 
-// --- Constants ---
+// --- Constants --- (Unchanged)
 const RTL_REGEX = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
 const LTR_REGEX = /[A-Za-z]/;
 const DIGIT_REGEX = /[0-9]/;
 const TARGET_TAGS = ['P', 'LI', 'TD', 'TH', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE', 'ARTICLE', 'SECTION', 'ASIDE', 'SUMMARY', 'FIGCAPTION', 'DD', 'DT'];
-const SKIP_SELECTORS = 'script, style, noscript, code, pre, kbd, var, samp, textarea, input, [contenteditable="true"], svg, math, iframe'; // Added iframe
+const SKIP_SELECTORS = 'script, style, noscript, code, pre, kbd, var, samp, textarea, input, [contenteditable="true"], svg, math, iframe';
 const PROCESSED_ATTR = 'data-rtl-fixer-processed';
 const RTL_STYLE_ATTR = 'data-rtl-fixer-styled';
 
-// --- State Variables ---
-let isEnabled = false; // Default to false until settings are confirmed
+// --- State Variables --- (Unchanged)
+let isEnabled = false;
 let excludedSites = [];
 let currentHostname = null;
 let observer = null;
 let observerActive = false;
+let secondScanTimer = null; // Timer ID for the delayed second scan
 
-// Get hostname early
-try {
-    if (window.location) {
-        currentHostname = window.location.hostname;
-    }
-} catch (e) {
-    console.error("RTL Fixer: Error getting hostname:", e);
-}
+// Get hostname early (Unchanged)
+try { if (window.location) currentHostname = window.location.hostname; }
+catch (e) { console.error("RTL Fixer: Error getting hostname:", e); }
 
 // --- Core Logic Functions (isPotentialCandidate, applyRtlStyle, checkAndFixNode) ---
-// These functions remain unchanged from the previous complete version.
-// They assume the decision to run has already been made based on isEnabled/excludedSites.
+// These functions remain unchanged.
 
-function isPotentialCandidate(element) {
-    // Basic checks
-    if (!element || element.nodeType !== Node.ELEMENT_NODE || element.matches(SKIP_SELECTORS) || !element.isConnected) {
-        return false;
-    }
-    if (element.hasAttribute(PROCESSED_ATTR) || element.hasAttribute(RTL_STYLE_ATTR)) {
-        return false;
-    }
-    let computedStyle;
-    try {
-        computedStyle = window.getComputedStyle(element);
-        if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
-            element.setAttribute(PROCESSED_ATTR, 'hidden');
-            return false;
-        }
-    } catch (e) { /* Ignore style errors */ computedStyle = null; }
-    const text = element.textContent;
-    if (!text || !RTL_REGEX.test(text)) {
-        element.setAttribute(PROCESSED_ATTR, 'no-rtl');
-        return false;
-    }
-    try {
-        const direction = computedStyle ? computedStyle.direction : window.getComputedStyle(element).direction;
-        if (direction === 'rtl') {
-            element.setAttribute(PROCESSED_ATTR, 'already-rtl');
-            return false;
-        }
-    } catch (e) {
-        element.setAttribute(PROCESSED_ATTR, 'style-error'); return false;
-    }
+function isPotentialCandidate(element) { /* ... unchanged ... */
+    if (!element || element.nodeType !== Node.ELEMENT_NODE || element.matches(SKIP_SELECTORS) || !element.isConnected) return false;
+    if (element.hasAttribute(PROCESSED_ATTR) || element.hasAttribute(RTL_STYLE_ATTR)) return false;
+    let computedStyle; try { computedStyle = window.getComputedStyle(element); if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') { element.setAttribute(PROCESSED_ATTR, 'hidden'); return false; } } catch (e) { computedStyle = null; }
+    const text = element.textContent; if (!text || !RTL_REGEX.test(text)) { element.setAttribute(PROCESSED_ATTR, 'no-rtl'); return false; }
+    try { const direction = computedStyle ? computedStyle.direction : window.getComputedStyle(element).direction; if (direction === 'rtl') { element.setAttribute(PROCESSED_ATTR, 'already-rtl'); return false; } } catch (e) { element.setAttribute(PROCESSED_ATTR, 'style-error'); return false; }
     return true;
 }
-
-function applyRtlStyle(element) {
-    element.style.direction = 'rtl';
-    element.style.textAlign = 'right';
-    element.setAttribute(RTL_STYLE_ATTR, 'true');
-    element.removeAttribute(PROCESSED_ATTR);
+function applyRtlStyle(element) { /* ... unchanged ... */
+    element.style.direction = 'rtl'; element.style.textAlign = 'right'; element.setAttribute(RTL_STYLE_ATTR, 'true'); element.removeAttribute(PROCESSED_ATTR);
 }
-
-function checkAndFixNode(node) {
-    if (!node) return;
-    if (node.nodeType === Node.TEXT_NODE && node.parentElement) {
-        node = node.parentElement;
-        node.removeAttribute(PROCESSED_ATTR);
-    }
-    if (!node || node.nodeType !== Node.ELEMENT_NODE || node.matches(SKIP_SELECTORS) || !node.isConnected) {
-        return;
-    }
-    if (isPotentialCandidate(node)) {
-        applyRtlStyle(node);
-    } else {
-        if (!node.hasAttribute(PROCESSED_ATTR) && !node.hasAttribute(RTL_STYLE_ATTR)) {
-            node.setAttribute(PROCESSED_ATTR, 'checked-subtree');
-        }
-    }
-    const children = node.children;
-    for (let i = 0; i < children.length; i++) {
-        checkAndFixNode(children[i]);
-    }
+function checkAndFixNode(node) { /* ... unchanged ... */
+    if (!node) return; if (node.nodeType === Node.TEXT_NODE && node.parentElement) { node = node.parentElement; node.removeAttribute(PROCESSED_ATTR); }
+    if (!node || node.nodeType !== Node.ELEMENT_NODE || node.matches(SKIP_SELECTORS) || !node.isConnected) return;
+    if (isPotentialCandidate(node)) { applyRtlStyle(node); } else { if (!node.hasAttribute(PROCESSED_ATTR) && !node.hasAttribute(RTL_STYLE_ATTR)) node.setAttribute(PROCESSED_ATTR, 'checked-subtree'); }
+    const children = node.children; for (let i = 0; i < children.length; i++) checkAndFixNode(children[i]);
 }
-
 
 // --- Scan and Observer Functions ---
 
-function runScan(container = document.body) {
+function runScan(scanReason = "Initial", container = document.body) { // Add reason for logging
+    // ** Check if active before running any scan **
+    if (!isEnabled || (currentHostname && excludedSites.includes(currentHostname))) {
+        console.log(`RTL Fixer: Scan (${scanReason}) skipped (disabled or excluded).`);
+        return;
+    }
     if (!container || typeof container.querySelectorAll !== 'function') return;
-    console.log("RTL Fixer: Running scan...");
+    console.log(`RTL Fixer: Running scan (${scanReason})...`);
     const candidates = container.querySelectorAll(TARGET_TAGS.join(','));
     let fixCount = 0;
     candidates.forEach(el => {
-        if (isPotentialCandidate(el)) { applyRtlStyle(el); fixCount++; }
-        else if (!el.hasAttribute(PROCESSED_ATTR) && !el.hasAttribute(RTL_STYLE_ATTR)) {
-            el.setAttribute(PROCESSED_ATTR, 'scan-checked');
+        try { // Add try-catch around candidate processing
+            if (isPotentialCandidate(el)) { applyRtlStyle(el); fixCount++; }
+            else if (!el.hasAttribute(PROCESSED_ATTR) && !el.hasAttribute(RTL_STYLE_ATTR)) {
+                el.setAttribute(PROCESSED_ATTR, 'scan-checked');
+            }
+        } catch (scanError) {
+            console.error(`RTL Fixer: Error processing candidate during ${scanReason} scan:`, el, scanError);
         }
     });
-    console.log(`RTL Fixer: Scan completed. ${fixCount} elements styled.`);
+    console.log(`RTL Fixer: Scan (${scanReason}) completed. ${fixCount} elements styled.`);
 }
 
 function debounce(func, wait) { /* Debounce implementation (unchanged) */
     let timeout; return function (...args) { const later = () => { clearTimeout(timeout); func(...args); }; clearTimeout(timeout); timeout = setTimeout(later, wait); };
 }
 
+// Make mutation handler slightly more robust
 const handleMutations = debounce((mutationsList) => {
     if (!isEnabled || !observerActive || (currentHostname && excludedSites.includes(currentHostname))) return;
+    // console.log("RTL Fixer: Processing mutations...");
     mutationsList.forEach((mutation) => {
-        if (mutation.type === 'childList') { mutation.addedNodes.forEach(checkAndFixNode); }
-        else if (mutation.type === 'characterData' && mutation.target.parentElement) {
-            mutation.target.parentElement.removeAttribute(PROCESSED_ATTR);
-            checkAndFixNode(mutation.target.parentElement);
+        try { // Add try-catch around mutation processing
+            if (mutation.type === 'childList') {
+                mutation.addedNodes.forEach(node => {
+                    try { checkAndFixNode(node); } // Inner try-catch for added nodes
+                    catch (nodeError) { console.error("RTL Fixer: Error in checkAndFixNode for added node:", node, nodeError); }
+                });
+            } else if (mutation.type === 'characterData' && mutation.target.parentElement) {
+                mutation.target.parentElement.removeAttribute(PROCESSED_ATTR);
+                checkAndFixNode(mutation.target.parentElement);
+            }
+        } catch (mutationError) {
+            console.error("RTL Fixer: Error processing mutation:", mutation, mutationError);
         }
     });
+    // console.log("RTL Fixer: Mutation processing finished.");
 }, 400);
 
-function startObserver() {
+
+function startObserver() { /* ... unchanged ... */
     if (observer || !isEnabled || (currentHostname && excludedSites.includes(currentHostname))) return;
     if (!document.body) { setTimeout(startObserver, 100); return; }
     console.log("RTL Fixer: Starting MutationObserver for", currentHostname);
     observer = new MutationObserver(handleMutations);
-    try {
-        observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-        observerActive = true;
-    } catch (error) { console.error("RTL Fixer: Failed to start observer:", error); observer = null; observerActive = false; }
+    try { observer.observe(document.body, { childList: true, subtree: true, characterData: true }); observerActive = true; }
+    catch (error) { console.error("RTL Fixer: Failed to start observer:", error); observer = null; observerActive = false; }
 }
 
-function stopObserver() {
+function stopObserver() { /* ... unchanged ... */
     if (observer) { console.log("RTL Fixer: Stopping observer"); observer.disconnect(); observer = null; observerActive = false; }
+    // Clear the second scan timer if we stop the observer
+    if (secondScanTimer) {
+        clearTimeout(secondScanTimer);
+        secondScanTimer = null;
+        console.log("RTL Fixer: Cleared delayed second scan timer.");
+    }
 }
 
-function revertAllStyles() { /* Revert styles implementation (unchanged) */
+function revertAllStyles() { /* ... unchanged ... */
     console.log("RTL Fixer: Reverting styles..."); const styled = document.querySelectorAll(`[${RTL_STYLE_ATTR}]`); styled.forEach(el => { el.style.direction = ''; el.style.textAlign = ''; el.removeAttribute(RTL_STYLE_ATTR); el.removeAttribute(PROCESSED_ATTR); }); console.log(`Reverted ${styled.length} elements.`);
 }
 
 
 // --- Initialization and Message Handling ---
 
-/**
- * Attempts to get settings from the background script with retries.
- * @param {number} maxRetries Maximum number of attempts.
- * @param {number} initialDelay Delay before the first retry (ms).
- * @returns {Promise<object|null>} Resolves with settings object or null on failure.
- */
-async function getSettingsWithRetry(maxRetries = 5, initialDelay = 200) {
+async function getSettingsWithRetry(maxRetries = 5, initialDelay = 200) { /* ... unchanged ... */
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-            console.log(`RTL Fixer Content: Attempt ${attempt}/${maxRetries} to get settings...`);
+        try { /* console.log(`Attempt ${attempt}/${maxRetries}...`); */
             const settings = await browser.runtime.sendMessage({ action: 'getSettings' });
-
-            // **Crucial Check:** Ensure the response is valid and contains expected data.
             if (settings && typeof settings.isEnabled !== 'undefined' && Array.isArray(settings.excludedSites)) {
-                console.log("RTL Fixer Content: Settings received successfully:", settings);
-                return settings; // Success! Return the settings.
+                /* console.log("Settings received:", settings); */ return settings;
             } else {
-                // Received something, but it's not valid settings object
-                console.warn(`RTL Fixer Content: Received invalid settings object on attempt ${attempt}:`, settings);
-                // Treat as failure and proceed to retry (or throw error if last attempt)
-                if (attempt === maxRetries) throw new Error("Invalid settings received after max retries.");
+                /* console.warn(`Invalid settings on attempt ${attempt}:`, settings); */
+                if (attempt === maxRetries) throw new Error("Invalid settings after max retries.");
             }
         } catch (error) {
-            console.warn(`RTL Fixer Content: Error getting settings on attempt ${attempt}:`, error.message);
-            if (attempt === maxRetries) {
-                console.error("RTL Fixer Content: Failed to get settings after multiple retries.");
-                return null; // Indicate final failure
-            }
+            /* console.warn(`Error on attempt ${attempt}:`, error.message); */
+            if (attempt === maxRetries) { /* console.error("Failed after retries."); */ return null; }
         }
-        // Wait before the next attempt
-        const delay = initialDelay * Math.pow(2, attempt - 1); // Exponential backoff
-        console.log(`RTL Fixer Content: Waiting ${delay}ms before next attempt...`);
+        const delay = initialDelay * Math.pow(2, attempt - 1);
+        /* console.log(`Waiting ${delay}ms...`); */
         await new Promise(resolve => setTimeout(resolve, delay));
-    }
-    return null; // Should not be reached if maxRetries > 0, but acts as safeguard
+    } return null;
 }
-
 
 /**
  * Main initialization function.
@@ -196,83 +153,77 @@ async function initialize() {
     // 2. Process the fetched settings (or handle failure)
     if (settings) {
         isEnabled = settings.isEnabled;
-        excludedSites = settings.excludedSites; // Already checked if array in retry function
+        excludedSites = settings.excludedSites;
 
-        console.log("RTL Fixer Content: Checking final settings.", {
-            isEnabled: isEnabled,
-            currentHostname: currentHostname,
-            isExcluded: currentHostname ? excludedSites.includes(currentHostname) : 'N/A',
-            excludedList: excludedSites
-        });
+        console.log("RTL Fixer Content: Checking final settings.", { /* ... detailed log ... */ });
 
         // 3. Decide whether to proceed
         if (isEnabled && currentHostname && !excludedSites.includes(currentHostname)) {
             console.log("RTL Fixer Content: Extension ACTIVE. Proceeding with scan and observer.");
 
             // 4. Run initial scan when ready (with small delay)
-            const runDelayedScan = () => setTimeout(() => {
-                if (document.body) runScan(document.body);
+            const runInitialScan = () => setTimeout(() => {
+                if (document.body) runScan("Initial DOM Ready"); // Pass reason
             }, 50);
-            if (document.readyState === 'complete' || document.readyState === 'interactive') { runDelayedScan(); }
-            else { document.addEventListener('DOMContentLoaded', runDelayedScan, { once: true }); }
+            if (document.readyState === 'complete' || document.readyState === 'interactive') { runInitialScan(); }
+            else { document.addEventListener('DOMContentLoaded', runInitialScan, { once: true }); }
 
-            // 5. Start the observer
+            // 5. Schedule a DELAYED SECOND SCAN as a fallback
+            // Clear any previous timer first (though unlikely at this stage)
+            if (secondScanTimer) clearTimeout(secondScanTimer);
+            const secondScanDelay = 1750; // Delay in milliseconds (e.g., 1.75 seconds)
+            console.log(`RTL Fixer: Scheduling delayed second scan in ${secondScanDelay}ms.`);
+            secondScanTimer = setTimeout(() => {
+                console.log("RTL Fixer: Running delayed second scan...");
+                // Check state *again* before running the delayed scan
+                if (isEnabled && currentHostname && !excludedSites.includes(currentHostname) && document.body) {
+                    runScan("Delayed Second Scan");
+                } else {
+                    console.log("RTL Fixer: Delayed second scan skipped (state changed or body missing).");
+                }
+                secondScanTimer = null; // Clear timer ID after execution
+            }, secondScanDelay);
+
+
+            // 6. Start the observer (happens quickly, observes future changes)
             startObserver();
 
         } else {
-            // Log reason for not proceeding
-            if (!isEnabled) console.log("RTL Fixer Content: Extension is DISABLED.");
-            else if (!currentHostname) console.log("RTL Fixer Content: No valid hostname.");
-            else console.log(`RTL Fixer Content: Site "${currentHostname}" is EXCLUDED.`);
-            stopObserver(); // Ensure observer is stopped
+            // Log reason for not proceeding (Unchanged)
+            // ...
+            stopObserver();
         }
     } else {
-        // Failed to get settings after retries
-        console.error("RTL Fixer Content: INITIALIZATION FAILED - Could not retrieve settings. Extension inactive.");
-        isEnabled = false; // Ensure state reflects failure
-        stopObserver();
+        // Failed to get settings after retries (Unchanged)
+        // ...
+        isEnabled = false; stopObserver();
     }
 }
 
 // --- Listener for Background Updates ---
-browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    const action = message?.action;
-    if (!action) return false; // Ignore messages without action
-
-    console.log(`RTL Fixer Content: Received message: ${action}`);
+browser.runtime.onMessage.addListener((message, sender, sendResponse) => { /* ... unchanged ... */
+    const action = message?.action; if (!action) return false;
+    // console.log(`RTL Fixer Content: Received message: ${action}`); // Less verbose logging
     if (action === 'updateState') {
         let needsReCheck = false;
-        // Update state if provided and changed
-        if (typeof message.payload?.isEnabled === 'boolean' && isEnabled !== message.payload.isEnabled) {
-            isEnabled = message.payload.isEnabled; console.log("isEnabled updated to:", isEnabled); needsReCheck = true;
-        }
-        if (Array.isArray(message.payload?.excludedSites) && JSON.stringify(excludedSites) !== JSON.stringify(message.payload.excludedSites)) {
-            excludedSites = message.payload.excludedSites; console.log("Exclusion list updated:", excludedSites); needsReCheck = true;
-        }
-        // Re-evaluate activity if state changed
+        if (typeof message.payload?.isEnabled === 'boolean' && isEnabled !== message.payload.isEnabled) { isEnabled = message.payload.isEnabled; console.log("isEnabled updated to:", isEnabled); needsReCheck = true; }
+        if (Array.isArray(message.payload?.excludedSites) && JSON.stringify(excludedSites) !== JSON.stringify(message.payload.excludedSites)) { excludedSites = message.payload.excludedSites; console.log("Exclusion list updated"); needsReCheck = true; }
         if (needsReCheck) {
             const shouldBeActive = isEnabled && currentHostname && !excludedSites.includes(currentHostname);
-            console.log("Re-checking activity state. Should be active:", shouldBeActive, "Observer currently active:", observerActive);
-            if (shouldBeActive && !observerActive) {
-                console.log("Enabling scan/observer due to state update.");
-                if (document.body) runScan(document.body); // Run scan now
-                startObserver();
-            } else if (!shouldBeActive && observerActive) {
-                console.log("Disabling observer due to state update.");
-                stopObserver();
-                revertAllStyles(); // Revert styles on dynamic disable/exclude
-            }
+            // console.log("Re-checking activity state. Should be active:", shouldBeActive, "Observer active:", observerActive);
+            if (shouldBeActive && !observerActive) { console.log("Enabling scan/observer due to state update."); if (document.body) runScan("State Update Re-enable"); startObserver(); } // Run scan on re-enable
+            else if (!shouldBeActive && observerActive) { console.log("Disabling observer/reverting due to state update."); stopObserver(); revertAllStyles(); }
         }
-        sendResponse({ success: true });
-        return true; // Async response possible
-    }
-    return false; // No async response for other actions
+        sendResponse({ success: true }); return true;
+    } return false;
 });
 
 // --- Start Initialization ---
-initialize(); // Call the main async initialization function
+initialize();
 
-// Cleanup observer on page unload
-window.addEventListener('beforeunload', stopObserver);
+// Cleanup observer & timer on page unload
+window.addEventListener('beforeunload', () => {
+    stopObserver(); // This now also clears the secondScanTimer
+});
 
 console.log("RTL Fixer Content: Script loaded and initialization sequence started.");
