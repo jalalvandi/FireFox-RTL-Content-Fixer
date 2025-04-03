@@ -17,7 +17,7 @@ let observer = null;
 let observerActive = false;
 let secondScanTimer = null; // Timer ID for the delayed second scan
 
-// Get hostname early (Unchanged)
+// Get hostname early
 try { if (window.location) currentHostname = window.location.hostname; }
 catch (e) { console.error("RTL Fixer: Error getting hostname:", e); }
 
@@ -169,7 +169,7 @@ async function initialize() {
             // 5. Schedule a DELAYED SECOND SCAN as a fallback
             // Clear any previous timer first (though unlikely at this stage)
             if (secondScanTimer) clearTimeout(secondScanTimer);
-            const secondScanDelay = 1750; // Delay in milliseconds (e.g., 1.75 seconds)
+            const secondScanDelay = 3750; // Delay in milliseconds (e.g., 1.75 seconds)
             console.log(`RTL Fixer: Scheduling delayed second scan in ${secondScanDelay}ms.`);
             secondScanTimer = setTimeout(() => {
                 console.log("RTL Fixer: Running delayed second scan...");
