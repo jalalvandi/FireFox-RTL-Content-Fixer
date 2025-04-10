@@ -48,9 +48,7 @@ Want to contribute or customize? Here’s how:
 4. **Submit a Pull Request**: Share your improvements with the community!
 
 ## License
-This project is open-source under the MIT License (LICENSE). Feel free to use, modify, and distribute it.
+This project is open-source under the Apache-2.0  License ([License](LICENSE)).
 
 ## Credits
 Developed by Sina Jalalvandi (mailto:jalalvandi.sina@gmail.com). Contributions and feedback are welcome!
-
----
