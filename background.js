@@ -1,3 +1,14 @@
+// ~/background.js
+//
+//  * Copyright (C) Mohammad (Sina) Jalalvandi 2024-2025 <jalalvandi.sina@gmail.com>
+//  * Package : firefox-RTL-Content-Fixer
+//  * License : Apache-2.0
+//  * Version : 1.1.2
+//  * URL     : https://github.com/jalalvandi/firefox-rtl-content-fixer
+//  * Sign: firefox-RTL-Content-Fixer-20250411-34b291c67838-e1983939d80718af0d479ae3613e95f1
+//
+// this file contains the background script for the extension.
+
 const DEFAULT_SETTINGS = {
     isEnabled: true,
     excludedSites: []
