@@ -1,4 +1,4 @@
-# RTL Content Fixer
+# RTL Content Fixer (FireFox Addon)
 
 A FireFox Addon designed to fix Right-to-Left (RTL) and Left-to-Right (LTR) text alignment issues in real-time, primarily for Persian users, with support for other RTL languages like Arabic. This tool ensures seamless text rendering on websites, especially when using browser translation tools (e.g., Google Translate) or LLM,s without requiring a page refresh.
 
