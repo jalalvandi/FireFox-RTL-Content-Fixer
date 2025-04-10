@@ -1,10 +1,27 @@
+<!--
+// ~/popup/popup.html
+//
+//  * Copyright (C) Mohammad (Sina) Jalalvandi 2024-2025 <jalalvandi.sina@gmail.com>
+//  * Package : FireFox-RTL-Content-Fixer
+//  * License : Apache-2.0
+//  * Version : 1.2.0
+//  * URL     : https://github.com/jalalvandi/firefox-rtl-content-fixer
+//  * Sign: FireFox-RTL-Content-Fixer-20250411-287207ba638e-2735c9d4aa25b5d556a8fca6a2f78a4a
+//
+// This file contains the JavaScript code for the popup UI of the Firefox extension.
+-->
+
+
+
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta charset="UTF-8">
     <title>RTL Fixer Settings</title>
     <link rel="stylesheet" href="popup.css">
 </head>
+
 <body>
     <div class="container">
         <h2>RTL Content Fixer</h2>
@@ -23,14 +40,15 @@
             <button id="unexclude-button" style="display: none;">Re-include Current Site</button>
         </div>
 
-         <div class="excluded-list" id="excluded-sites-section" style="display: none;">
-             <h3>Excluded Sites:</h3>
-             <ul id="excluded-sites-list">
-                 <!-- Sites will be listed here -->
-             </ul>
-         </div>
-         <p class="status" id="status-message"></p>
+        <div class="excluded-list" id="excluded-sites-section" style="display: none;">
+            <h3>Excluded Sites:</h3>
+            <ul id="excluded-sites-list">
+                <!-- Sites will be listed here -->
+            </ul>
+        </div>
+        <p class="status" id="status-message"></p>
     </div>
     <script src="popup.js"></script>
 </body>
+
 </html>

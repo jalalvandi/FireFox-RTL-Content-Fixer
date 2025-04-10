@@ -59,6 +59,6 @@ This project is open-source under the Apache-2.0  License ([License](LICENSE)).
 Developed by Sina Jalalvandi (mailto:jalalvandi.sina@gmail.com). Contributions and feedback are welcome!
 
 ```
-Version: 1.1.2
-Sign: firefox-RTL-Content-Fixer-20250411-34b291c67838-e1983939d80718af0d479ae3613e95f1
+Version: 1.2.0
+Sign: FireFox-RTL-Content-Fixer-20250411-287207ba638e-2735c9d4aa25b5d556a8fca6a2f78a4a
 ```

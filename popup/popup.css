@@ -1,7 +1,19 @@
-/* popup.css */
+/*// ~/popup/popup.css
+//
+//  * Copyright (C) Mohammad (Sina) Jalalvandi 2024-2025 <jalalvandi.sina@gmail.com>
+//  * Package : FireFox-RTL-Content-Fixer
+//  * License : Apache-2.0
+//  * Version : 1.2.0
+//  * URL     : https://github.com/jalalvandi/firefox-rtl-content-fixer
+//  * Sign: FireFox-RTL-Content-Fixer-20250411-287207ba638e-2735c9d4aa25b5d556a8fca6a2f78a4a
+//
+// This file contains popup style */
+
+
 body {
     font-family: sans-serif;
-    width: 280px; /* Adjust width as needed */
+    width: 280px;
+    /* Adjust width as needed */
     padding: 10px;
     background-color: #f9f9f9;
     color: #333;
@@ -10,14 +22,16 @@ body {
 .container {
     display: flex;
     flex-direction: column;
-    gap: 15px; /* Spacing between sections */
+    gap: 15px;
+    /* Spacing between sections */
 }
 
 h2 {
     text-align: center;
     margin-top: 0;
     margin-bottom: 10px;
-    color: #005aaa; /* Example color */
+    color: #005aaa;
+    /* Example color */
 }
 
 .setting {
@@ -27,13 +41,14 @@ h2 {
     padding: 8px;
     background-color: #fff;
     border-radius: 4px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .setting p {
     margin: 0;
     flex-grow: 1;
-    margin-right: 10px; /* Space before buttons */
+    margin-right: 10px;
+    /* Space before buttons */
     font-size: 0.9em;
 }
 
@@ -41,7 +56,8 @@ h2 {
     font-weight: bold;
     color: #555;
     display: inline-block;
-    max-width: 100px; /* Prevent long hostnames breaking layout */
+    max-width: 100px;
+    /* Prevent long hostnames breaking layout */
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -59,12 +75,15 @@ button {
 }
 
 #exclude-button {
-    background-color: #e07a5f; /* Coral/Orange */
+    background-color: #e07a5f;
+    /* Coral/Orange */
     color: white;
 }
+
 #exclude-button:hover:not(:disabled) {
     background-color: #d6654a;
 }
+
 #exclude-button:disabled {
     background-color: #ccc;
     cursor: not-allowed;
@@ -72,9 +91,11 @@ button {
 
 
 #unexclude-button {
-    background-color: #81b29a; /* Greenish */
+    background-color: #81b29a;
+    /* Greenish */
     color: white;
 }
+
 #unexclude-button:hover {
     background-color: #6a9c81;
 }
@@ -82,63 +103,74 @@ button {
 
 /* The switch - https://www.w3schools.com/howto/howto_css_switch.asp */
 .switch {
-  position: relative;
-  display: inline-block;
-  width: 44px; /* smaller */
-  height: 24px; /* smaller */
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    /* smaller */
+    height: 24px;
+    /* smaller */
 }
 
 .switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
+    opacity: 0;
+    width: 0;
+    height: 0;
 }
 
 .slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: #ccc;
-  -webkit-transition: .4s;
-  transition: .4s;
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    -webkit-transition: .4s;
+    transition: .4s;
 }
 
 .slider:before {
-  position: absolute;
-  content: "";
-  height: 18px; /* smaller */
-  width: 18px;  /* smaller */
-  left: 3px;    /* adjusted */
-  bottom: 3px;  /* adjusted */
-  background-color: white;
-  -webkit-transition: .4s;
-  transition: .4s;
+    position: absolute;
+    content: "";
+    height: 18px;
+    /* smaller */
+    width: 18px;
+    /* smaller */
+    left: 3px;
+    /* adjusted */
+    bottom: 3px;
+    /* adjusted */
+    background-color: white;
+    -webkit-transition: .4s;
+    transition: .4s;
 }
 
-input:checked + .slider {
-  background-color: #2196F3; /* Blue */
+input:checked+.slider {
+    background-color: #2196F3;
+    /* Blue */
 }
 
-input:focus + .slider {
-  box-shadow: 0 0 1px #2196F3;
+input:focus+.slider {
+    box-shadow: 0 0 1px #2196F3;
 }
 
-input:checked + .slider:before {
-  -webkit-transform: translateX(20px); /* adjusted */
-  -ms-transform: translateX(20px); /* adjusted */
-  transform: translateX(20px); /* adjusted */
+input:checked+.slider:before {
+    -webkit-transform: translateX(20px);
+    /* adjusted */
+    -ms-transform: translateX(20px);
+    /* adjusted */
+    transform: translateX(20px);
+    /* adjusted */
 }
 
 /* Rounded sliders */
 .slider.round {
-  border-radius: 24px; /* adjusted */
+    border-radius: 24px;
+    /* adjusted */
 }
 
 .slider.round:before {
-  border-radius: 50%;
+    border-radius: 50%;
 }
 
 .status {
@@ -146,7 +178,8 @@ input:checked + .slider:before {
     color: #666;
     text-align: center;
     margin-top: 5px;
-    min-height: 1em; /* Reserve space */
+    min-height: 1em;
+    /* Reserve space */
 }
 
 .excluded-list {
@@ -155,19 +188,24 @@ input:checked + .slider:before {
     background-color: #eee;
     border-radius: 4px;
 }
+
 .excluded-list h3 {
     margin-top: 0;
     margin-bottom: 5px;
     font-size: 0.95em;
     color: #444;
 }
+
 #excluded-sites-list {
     list-style: none;
     padding: 0;
     margin: 0;
-    max-height: 100px; /* Limit height */
-    overflow-y: auto; /* Add scroll if needed */
+    max-height: 100px;
+    /* Limit height */
+    overflow-y: auto;
+    /* Add scroll if needed */
 }
+
 #excluded-sites-list li {
     font-size: 0.85em;
     padding: 3px 0;
@@ -175,20 +213,26 @@ input:checked + .slider:before {
     justify-content: space-between;
     align-items: center;
 }
+
 #excluded-sites-list span {
     flex-grow: 1;
     margin-right: 5px;
-    word-break: break-all; /* Handle long names */
+    word-break: break-all;
+    /* Handle long names */
 }
+
 #excluded-sites-list button {
     background: none;
     border: none;
-    color: #cc0000; /* Red for remove */
+    color: #cc0000;
+    /* Red for remove */
     cursor: pointer;
     padding: 2px;
-    font-size: 1.1em; /* Make X bigger */
+    font-size: 1.1em;
+    /* Make X bigger */
     line-height: 1;
 }
+
 #excluded-sites-list button:hover {
     color: #ff0000;
 }

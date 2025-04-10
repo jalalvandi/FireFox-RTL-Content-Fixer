@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "FireFox RTL Content Fixer",
-    "version": "1.1.2",
+    "version": "1.2.0",
     "description": "Automatically adjusts text direction to RTL for elements containing mixed Persian/Arabic and LTR text, improving readability. Includes UI controls.",
     "author": "Sina Jalalvandi",
     "homepage_url": "https://github.com/jalalvandi/FireFox-RTL-Content-Fixer",

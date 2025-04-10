@@ -1,11 +1,11 @@
 // ~/popup/popup.js
 //
 //  * Copyright (C) Mohammad (Sina) Jalalvandi 2024-2025 <jalalvandi.sina@gmail.com>
-//  * Package : firefox-RTL-Content-Fixer
+//  * Package : FireFox-RTL-Content-Fixer
 //  * License : Apache-2.0
-//  * Version : 1.1.2
+//  * Version : 1.2.0
 //  * URL     : https://github.com/jalalvandi/firefox-rtl-content-fixer
-//  * Sign: firefox-RTL-Content-Fixer-20250411-34b291c67838-e1983939d80718af0d479ae3613e95f1
+//  * Sign: FireFox-RTL-Content-Fixer-20250411-287207ba638e-2735c9d4aa25b5d556a8fca6a2f78a4a
 //
 // This file contains the JavaScript code for the popup UI of the Firefox extension.
 
